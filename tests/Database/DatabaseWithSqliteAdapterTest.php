@@ -19,9 +19,15 @@ use PHPUnit\Framework\TestCase;
 use Caldera\Database\Database;
 use Caldera\Database\DatabaseException;
 use Caldera\Database\Adapter\AdapterInterface;
-use Caldera\Database\Adapter\MySQLAdapter;
+use Caldera\Database\Adapter\SQLiteAdapter;
 
-class DatabaseWithMysqlAdapterTest extends TestCase {
+class DatabaseWithSqliteAdapterTest extends TestCase {
+
+	/**
+	 * Database path
+	 * @var string
+	 */
+	protected static $path;
 
 	/**
 	 * Database adapter instance
@@ -35,43 +41,53 @@ class DatabaseWithMysqlAdapterTest extends TestCase {
 	 */
 	protected static $database;
 
+	public static function setUpBeforeClass(): void {
+		self::$path = dirname(__DIR__) . '/output/database_test.sqlite';
+		# Create an empty SQLite database file
+		$data = '7dHBSsNAEAbg2WjxJClI8DpHBdvG3UvtRdO6SjCNmqxgb0YToWhtifHi0XfwAXw'.
+				'jH8mkKPYQMHf/D35YZobZhY0vg2mR8f08nyUFK2qTEHTETCR6RGR9R5T5KLNOvw'.
+				'T9qdzRjW82q2ObyH4gAAAAAAAAgH/gfdtxxNtGkdw+ZkX2XFSxRpH2jGbjDQPNV'.
+				'YV3pin7odGnOuKLyB970YTP9ITDc8PhVRDs8VMyy9joa7NSu8uzpMhSPi63GX+s'.
+				'V1ovi7S+tfvzMvvTPrQX+CEAAAAAAACAGj2rRY5SRsdGulJ23H5HHvB+fyDVQMq'.
+				'aUnetRVtKDZPXZvPlHe5yPm+4Xyz3n8znzea/AA==';
+		file_put_contents( self::$path, gzinflate( base64_decode($data) ) );
+	}
+
+	public static function tearDownAfterClass(): void {
+		self::$adapter = null;
+		self::$database = null;
+	}
+
 	protected function setUp(): void {
 		# Create database
 		$options = [
-			'host' => getenv('TEST_DB_HOST') ?: 'localhost',
-			'name' => getenv('TEST_DB_NAME') ?: 'meteor',
-			'user' => getenv('TEST_DB_USER') ?: 'root',
+			'file' => self::$path
 		];
-		self::$adapter = new MySQLAdapter($options);
+		self::$adapter = new SQLiteAdapter($options);
 		self::$database = new Database(self::$adapter);
 	}
 
 	public function testConnectionFailure() {
 		# Create database
-		$options = [
-			'host' => 'localhost',
-			'name' => 'dummy',
-			'user' => 'dummy',
-		];
+		$options = [];
 		try {
-			self::$adapter = new MySQLAdapter($options);
-			self::$database = new Database(self::$adapter);
+			$adapter = new SQLiteAdapter($options);
+			$database = new Database($adapter);
 			$this->fail('This must throw a DatabaseException');
 		} catch (DatabaseException $e) {
-			$this->assertInstanceOf(MySQLAdapter::class, $e->getAdapter());
+			$this->assertInstanceOf(SQLiteAdapter::class, $e->getAdapter());
 		} catch (Exception $e) {
 			$this->fail('The exception must be an instance of DatabaseException');
 		}
 	}
 
 	public function testConnectionSucess() {
-		# Make sure the database is connected
 		$this->assertTrue( self::$database->isConnected() );
-		$this->assertInstanceOf( MySQLAdapter::class, self::$database->getAdapter() );
+		$this->assertInstanceOf( SQLiteAdapter::class, self::$database->getAdapter() );
 		# Delete test table
 		self::$database->query("DROP TABLE IF EXISTS test");
 		# Create test table
-		self::$database->query("CREATE TABLE test (id BIGINT NOT NULL AUTO_INCREMENT, name VARCHAR(100) NOT NULL, created DATETIME NOT NULL, updated DATETIME NOT NULL, PRIMARY KEY pk_id (id))");
+		self::$database->query("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT NOT NULL, created DATETIME NOT NULL, updated DATETIME NOT NULL)");
 	}
 
 	public function testErrorHandling() {
@@ -86,7 +102,7 @@ class DatabaseWithMysqlAdapterTest extends TestCase {
 
 	public function testInsert() {
 		# Insert some records
-		self::$database->query("INSERT INTO test (id, name, created, updated) VALUES (0, 'Foo', NOW(), NOW()), (0, 'Bar', NOW(), NOW()), (0, 'Baz', NOW(), NOW())");
+		self::$database->query("INSERT INTO test (name, created, updated) VALUES ('Foo', datetime('now'), datetime('now')), ('Bar', datetime('now'), datetime('now')), ('Baz', datetime('now'), datetime('now'))");
 		$last = self::$database->lastInsertId();
 		$this->assertNotEquals(0, $last);
 	}
