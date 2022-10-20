@@ -85,7 +85,7 @@ class Database {
 			$row = $this->adapter->query($query, $parameters, function($stmt) {
 				return $stmt->fetch();
 			});
-			$props = get_object_vars($row);
+			$props = $row === false ? [] : get_object_vars($row);
 			if ( count($props) == 1 ) {
 				$ret = reset($props);
 			} else {
