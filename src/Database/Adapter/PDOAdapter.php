@@ -24,7 +24,7 @@ abstract class PDOAdapter implements AdapterInterface {
 	 * DSN
 	 * @var string
 	 */
-	protected $dsn;
+	protected $dsn = '';
 
 	/**
 	 * Database handle
@@ -36,7 +36,13 @@ abstract class PDOAdapter implements AdapterInterface {
 	 * Options array
 	 * @var array
 	 */
-	protected $options;
+	protected $options = [];
+
+	/**
+	 * Debug information
+	 * @var string
+	 */
+	protected $debug_info = '';
 
 	/**
 	 * Constructor
@@ -53,6 +59,14 @@ abstract class PDOAdapter implements AdapterInterface {
 	public abstract function connect(): bool;
 
 	/**
+	 * Get available debug info, if any
+	 * @return string
+	 */
+	public function getDebugInfo(): string {
+		return $this->debug_info;
+	}
+
+	/**
 	 * Execute a query
 	 * @param  string   $query      Query string
 	 * @param  array    $parameters Array of parameters
@@ -62,6 +76,7 @@ abstract class PDOAdapter implements AdapterInterface {
 	public function query(string $query, array $parameters = [], Closure $callback = null) {
 		$ret = false;
 		if ($this->dbh != null) {
+			$stmt = null;
 			try {
 				$stmt = $this->dbh->prepare($query);
 				if ($parameters) {
@@ -72,6 +87,11 @@ abstract class PDOAdapter implements AdapterInterface {
 						$index++;
 					}
 				}
+				# Dump debug info
+				ob_start();
+				$stmt->debugDumpParams();
+				$this->debug_info = ob_get_clean();
+				# Execute the query
 				$stmt->execute();
 				$result = null;
 				if ( $callback ) {

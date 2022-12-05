@@ -22,6 +22,12 @@ interface AdapterInterface {
 	public function connect(): bool;
 
 	/**
+	 * Get available debug info, if any
+	 * @return string
+	 */
+	public function getDebugInfo(): string;
+
+	/**
 	 * Execute a query
 	 * @param  string  $query      Query string
 	 * @param  array   $parameters Array of parameters
