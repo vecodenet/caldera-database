@@ -23,9 +23,9 @@ interface AdapterInterface {
 
 	/**
 	 * Get available debug info, if any
-	 * @return string
+	 * @return array
 	 */
-	public function getDebugInfo(): string;
+	public function getDebugInfo(): array;
 
 	/**
 	 * Execute a query

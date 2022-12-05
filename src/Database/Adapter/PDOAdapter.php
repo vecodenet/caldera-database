@@ -40,9 +40,9 @@ abstract class PDOAdapter implements AdapterInterface {
 
 	/**
 	 * Debug information
-	 * @var string
+	 * @var array
 	 */
-	protected $debug_info = '';
+	protected $debug_info = [];
 
 	/**
 	 * Constructor
@@ -60,9 +60,9 @@ abstract class PDOAdapter implements AdapterInterface {
 
 	/**
 	 * Get available debug info, if any
-	 * @return string
+	 * @return array
 	 */
-	public function getDebugInfo(): string {
+	public function getDebugInfo(): array {
 		return $this->debug_info;
 	}
 
@@ -77,6 +77,9 @@ abstract class PDOAdapter implements AdapterInterface {
 		$ret = false;
 		if ($this->dbh != null) {
 			$stmt = null;
+			# Save debug info
+			$this->debug_info['query'] = $query;
+			$this->debug_info['parameters'] = $parameters;
 			try {
 				$stmt = $this->dbh->prepare($query);
 				if ($parameters) {
@@ -87,10 +90,6 @@ abstract class PDOAdapter implements AdapterInterface {
 						$index++;
 					}
 				}
-				# Dump debug info
-				ob_start();
-				$stmt->debugDumpParams();
-				$this->debug_info = ob_get_clean();
 				# Execute the query
 				$stmt->execute();
 				$result = null;
