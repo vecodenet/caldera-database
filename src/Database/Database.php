@@ -86,7 +86,7 @@ class Database {
 			});
 			$props = $row === false ? [] : get_object_vars($row);
 			if ( count($props) == 1 ) {
-				$ret = reset($props);
+				$ret = reset($props) ?? 0;
 			} else {
 				throw new DatabaseException($this->adapter, "The specified query didn't return an scalar value");
 			}
