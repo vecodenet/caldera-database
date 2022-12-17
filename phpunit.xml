@@ -4,6 +4,15 @@
         <testsuite name="Caldera Database Test Suite">
             <directory>./tests/</directory>
         </testsuite>
+        <testsuite name="Schema">
+            <directory>./tests/Database/Schema</directory>
+        </testsuite>
+        <testsuite name="Migrations">
+            <directory>./tests/Database/Migrations</directory>
+        </testsuite>
+        <testsuite name="Seeds">
+            <directory>./tests/Database/Seeds</directory>
+        </testsuite>
     </testsuites>
     <logging>
         <testdoxHtml outputFile="tests/output/index.html"/>

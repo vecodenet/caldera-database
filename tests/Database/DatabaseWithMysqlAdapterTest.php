@@ -71,6 +71,11 @@ class DatabaseWithMysqlAdapterTest extends TestCase {
 		self::$database->query("DROP TABLE IF EXISTS test");
 		# Create test table
 		self::$database->query("CREATE TABLE test (id BIGINT NOT NULL AUTO_INCREMENT, name VARCHAR(100) NOT NULL, created DATETIME NOT NULL, updated DATETIME NOT NULL, PRIMARY KEY pk_id (id))");
+		# Get debug information
+		$debug = self::$adapter->getDebugInfo();
+		$this->assertIsArray($debug);
+		$this->assertArrayHasKey('query', $debug);
+		$this->assertArrayHasKey('parameters', $debug);
 	}
 
 	public function testErrorHandling() {
