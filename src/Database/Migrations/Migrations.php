@@ -17,6 +17,7 @@ use RuntimeException;
 use Caldera\Database\Database;
 use Caldera\Database\Adapter\MySQLAdapter;
 use Caldera\Database\Adapter\SQLiteAdapter;
+use Caldera\Database\Migrations\Migrator\MigratorInterface;
 use Caldera\Database\Migrations\Migrator\MySQLMigrator;
 use Caldera\Database\Migrations\Migrator\SQLiteMigrator;
 
@@ -113,7 +114,6 @@ class Migrations {
 			}
 			$applied = $temp;
 		}
-		$applied = is_array($applied) ? $applied : [];
 		if ($migrations) {
 			foreach ($migrations as $name => $migration) {
 				if ( in_array($name, $applied) ) continue;
@@ -142,7 +142,6 @@ class Migrations {
 			}
 			$applied = $temp;
 		}
-		$applied = is_array($applied) ? $applied : [];
 		if ($migrations) {
 			foreach ($migrations as $name => $migration) {
 				if ( isset( $applied[$name] ) ) continue;
@@ -151,7 +150,6 @@ class Migrations {
 		}
 		if ($available) {
 			$batches = $this->migrator->getLatestBatch();
-			// $console->blank()->info("Migrating database...");
 			foreach ($available as $name => $migration) {
 				if ( file_exists($migration->path) ) {
 					if (! class_exists($migration->class) ) {
@@ -159,26 +157,23 @@ class Migrations {
 						require $migration->path;
 					}
 					$instance = new $migration->class($this->database);
-					if ($instance) {
-						// $console->info("Migrating '{$migration->name}'...");
+					if ( $instance instanceof MigrationInterface ) {
 						try {
 							$result = $instance->up();
 							if ($result === true) {
 								$this->migrator->storeMigration($name, $migration->class, $batches + 1);
 							}
-						} catch (Exception $e) {var_dump($e->getMessage());
-							// $console->info("Error while migrating '{$migration->name}': " . $e->getMessage());
+						} catch (Exception $e) {
+							throw new RuntimeException('An error has ocurred when running the migration', 0, $e);
 						}
+					} else {
+						throw new RuntimeException("Class '{$migration->class}' does not implement MigrationInterface");
 					}
 				} else {
 					throw new RuntimeException("Migration '{$migration->name}' does not exist");
 				}
 			}
-			// $console->info("Migration done");
-		} else {
-			// $console->blank()->warning("No pending migrations");
 		}
-		// $console->blank();
 	}
 
 	/**
@@ -217,7 +212,7 @@ class Migrations {
 					$temp->id = $migration->id;
 					$available[] = $temp;
 				} else {
-					$missing[] = $applied->name;
+					$missing[] = $applied['name'];
 				}
 			}
 		}
@@ -226,7 +221,6 @@ class Migrations {
 			throw new RuntimeException("Missing migrations that can not be rolled-back: {$temp}");
 		}
 		if ($available) {
-			// $console->blank()->info("Rolling-back migrations...");
 			foreach ($available as $migration) {
 				if ( file_exists($migration->path) ) {
 					if (! class_exists($migration->class) ) {
@@ -234,16 +228,17 @@ class Migrations {
 						include $migration->path;
 					}
 					$instance = new $migration->class($this->database);
-					if ($instance) {
-						// $console->info("Rolling-back '{$migration->name}'...");
+					if ( $instance instanceof MigrationInterface ) {
 						try {
 							$result = $instance->down();
 							if ($result === true) {
 								$this->migrator->deleteMigration($migration->id);
 							}
-						} catch (Exception $e) {var_dump($e->getMessage());
-							// $console->info("Error while rolling-back '{$migration->name}': " . $e->getMessage());
+						} catch (Exception $e) {
+							throw new RuntimeException('An error has ocurred when running the migration', 0, $e);
 						}
+					} else {
+						throw new RuntimeException("Class '{$migration->class}' does not implement MigrationInterface");
 					}
 				} else {
 					throw new RuntimeException("Migration '{$migration->name}' does not exist");
@@ -256,11 +251,7 @@ class Migrations {
 					$this->migrator->clearMigrations();
 				}
 			}
-			// $console->info("Rollback done");
-		} else {
-			// $console->blank()->warning("No available migrations to rollback");
 		}
-		// $console->blank();
 	}
 
 	/**
@@ -283,22 +274,24 @@ class Migrations {
 		if ($this->paths) {
 			foreach ($this->paths as $entry) {
 				$files = scandir($entry->path, SCANDIR_SORT_ASCENDING);
-				# And check the files
-				foreach ($files ?? [] as $file) {
-					if ( $file == '.' || $file == '..' ) continue;
-					$path = "{$entry->path}/{$file}";
-					$namespace = $this->getNamespace($path);
-					if ( preg_match('/(\d{8}_\d{6})-(.*)\.php/', $file, $matches) === 1 ) {
-						$date = $matches[1];
-						$name = $matches[2];
-						$class = sprintf('%s\%s', $namespace, $matches[2]);
-						$key = "{$date}-{$name}";
-						$ret[$key] = (object) [
-							'date' => $date,
-							'name' => $name,
-							'class' => $class,
-							'path' => $path
-						];
+				if ($files) {
+					# And check the files
+					foreach ($files as $file) {
+						if ( $file == '.' || $file == '..' ) continue;
+						$path = "{$entry->path}/{$file}";
+						$namespace = $this->getNamespace($path);
+						if ( preg_match('/(\d{8}_\d{6})-(.*)\.php/', $file, $matches) === 1 ) {
+							$date = $matches[1];
+							$name = $matches[2];
+							$class = sprintf('%s\%s', $namespace, $matches[2]);
+							$key = "{$date}-{$name}";
+							$ret[$key] = (object) [
+								'date' => $date,
+								'name' => $name,
+								'class' => $class,
+								'path' => $path
+							];
+						}
 					}
 				}
 			}
@@ -314,31 +307,34 @@ class Migrations {
 	 */
 	protected function getNamespace(string $path): string {
 		$src = file_exists($path) ? file_get_contents($path) : '';
-		$tokens = token_get_all($src);
-		$count = count($tokens);
-		$i = 0;
-		$namespace = '';
-		$namespace_found = false;
-		while ($i < $count) {
-			$token = $tokens[$i];
-			if (is_array($token) && $token[0] === T_NAMESPACE) {
-				// Found namespace declaration
-				while (++$i < $count) {
-					if ($tokens[$i] === ';') {
-						$namespace_found = true;
-						$namespace = trim($namespace);
-						break;
+		if ($src) {
+			$tokens = token_get_all($src);
+			$count = count($tokens);
+			$i = 0;
+			$namespace = '';
+			$namespace_found = false;
+			while ($i < $count) {
+				$token = $tokens[$i];
+				if (is_array($token) && $token[0] === T_NAMESPACE) {
+					// Found namespace declaration
+					while (++$i < $count) {
+						if ($tokens[$i] === ';') {
+							$namespace_found = true;
+							$namespace = trim($namespace);
+							break;
+						}
+						$namespace .= is_array($tokens[$i]) ? $tokens[$i][1] : $tokens[$i];
 					}
-					$namespace .= is_array($tokens[$i]) ? $tokens[$i][1] : $tokens[$i];
+					break;
 				}
-				break;
+				$i++;
 			}
-			$i++;
+			if (!$namespace_found) {
+				return '';
+			} else {
+				return $namespace;
+			}
 		}
-		if (!$namespace_found) {
-			return '';
-		} else {
-			return $namespace;
-		}
+		return '';
 	}
 }

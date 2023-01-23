@@ -67,9 +67,7 @@ class Seeds {
 	 * @return void
 	 */
 	public function seed(string $seeder = null): void {
-		// $console = resolve(Console::class);
 		$seeders = $this->autoload();
-		// $console->blank()->info('Seeding database...');
 		$available = [];
 		if ($seeder) {
 			if ( isset( $seeders[$seeder] ) ) {
@@ -83,19 +81,18 @@ class Seeds {
 				if (! class_exists($seeder->class) ) {
 					include $seeder->path;
 				}
-				// $console->info("Running '{$seeder->name}'...");
 				try {
 					$instance = new $seeder->class($this->database);
-					$instance->run();
+					if ( $instance instanceof SeederInterface ) {
+						$instance->run();
+					} else {
+						throw new RuntimeException("Class '{$seeder->class}' does not implement SeederInterface");
+					}
 				} catch (Exception $e) {
-					// $console->info("Error while running seeder '{$seeder->name}': " . $e->getMessage());
+					throw new RuntimeException('An error has ocurred when running the seeder', 0, $e);
 				}
 			}
-			// $console->info('Database seeded');
-		} else {
-			// $console->warning('No available seeders');
 		}
-		// $console->blank();
 	}
 
 	/**
@@ -104,32 +101,25 @@ class Seeds {
 	 */
 	protected function autoload(): array {
 		$ret = [];
-		# Get PSR-4 namespaces from composer.json
-		$composer = json_decode( file_get_contents(BASE_DIR . '/composer.json') );
-		$namespaces = [];
-		foreach ($composer->autoload->{'psr-4'} as $name => $folder) {
-			$namespaces[] = (object) [
-				'name' => rtrim($name, '\\'),
-				'folder' => BASE_DIR . '/' . rtrim($folder, '/')
-			];
-		}
-		# Now iterate the registered paths
+		# Iterate the registered paths
 		if ($this->paths) {
 			foreach ($this->paths as $entry) {
 				$files = scandir($entry->path, SCANDIR_SORT_ASCENDING);
-				# And check the files
-				foreach ($files ?? [] as $file) {
-					if ( $file == '.' || $file == '..' ) continue;
-					$path = "{$entry->path}/{$file}";
-					$namespace = $this->getNamespace($path);
-					if ( preg_match('/(.*)\.php/', $file, $matches) === 1 ) {
-						$name = $matches[1];
-						$class = sprintf('%s\%s', $namespace, $matches[1]);
-						$ret[$name] = (object) [
-							'name' => $name,
-							'class' => $class,
-							'path' => "{$entry->path}/{$file}"
-						];
+				if ($files) {
+					# And check the files
+					foreach ($files as $file) {
+						if ( $file == '.' || $file == '..' ) continue;
+						$path = "{$entry->path}/{$file}";
+						$namespace = $this->getNamespace($path);
+						if ( preg_match('/(.*)\.php/', $file, $matches) === 1 ) {
+							$name = $matches[1];
+							$class = sprintf('%s\%s', $namespace, $matches[1]);
+							$ret[$name] = (object) [
+								'name' => $name,
+								'class' => $class,
+								'path' => "{$entry->path}/{$file}"
+							];
+						}
 					}
 				}
 			}
@@ -145,31 +135,34 @@ class Seeds {
 	 */
 	protected function getNamespace(string $path): string {
 		$src = file_exists($path) ? file_get_contents($path) : '';
-		$tokens = token_get_all($src);
-		$count = count($tokens);
-		$i = 0;
-		$namespace = '';
-		$namespace_found = false;
-		while ($i < $count) {
-			$token = $tokens[$i];
-			if (is_array($token) && $token[0] === T_NAMESPACE) {
-				// Found namespace declaration
-				while (++$i < $count) {
-					if ($tokens[$i] === ';') {
-						$namespace_found = true;
-						$namespace = trim($namespace);
-						break;
+		if ($src) {
+			$tokens = token_get_all($src);
+			$count = count($tokens);
+			$i = 0;
+			$namespace = '';
+			$namespace_found = false;
+			while ($i < $count) {
+				$token = $tokens[$i];
+				if (is_array($token) && $token[0] === T_NAMESPACE) {
+					// Found namespace declaration
+					while (++$i < $count) {
+						if ($tokens[$i] === ';') {
+							$namespace_found = true;
+							$namespace = trim($namespace);
+							break;
+						}
+						$namespace .= is_array($tokens[$i]) ? $tokens[$i][1] : $tokens[$i];
 					}
-					$namespace .= is_array($tokens[$i]) ? $tokens[$i][1] : $tokens[$i];
+					break;
 				}
-				break;
+				$i++;
 			}
-			$i++;
+			if (!$namespace_found) {
+				return '';
+			} else {
+				return $namespace;
+			}
 		}
-		if (!$namespace_found) {
-			return '';
-		} else {
-			return $namespace;
-		}
+		return '';
 	}
 }

@@ -232,14 +232,13 @@ class SQLiteBuilder extends AbstractBuilder {
 						$col_name = $column->getName();
 						$column_defs[] = "ALTER TABLE `{$table}` DROP COLUMN `{$col_name}`";
 					break;
-					case Column::OPERATION_MODIFY:
-						throw new RuntimeException('Column modification is not supported');
-					break;
 					case Column::OPERATION_RENAME:
 						$col_name = $column->getName();
 						$old_name = $column->getOldName();
 						$column_defs[] = "ALTER TABLE `{$table}` RENAME COLUMN `{$old_name}` TO `{$col_name}`";
 					break;
+					case Column::OPERATION_MODIFY:
+						throw new RuntimeException('Column modification is not supported');
 				}
 			}
 		}
@@ -396,7 +395,7 @@ class SQLiteBuilder extends AbstractBuilder {
 		}
 		if ( $column->getDefault() !== null ) {
 			$default = $column->getDefault();
-			if ( is_object($default) ) {
+			if ( is_object($default) && isset($default->value) ) {
 				$ret .= sprintf(" DEFAULT %s", $default->value);
 			} else {
 				$ret .= sprintf(" DEFAULT '%s'", $default);
@@ -417,15 +416,14 @@ class SQLiteBuilder extends AbstractBuilder {
 			case Key::TYPE_INDEX:
 				$type = 'INDEX';
 			break;
-			case Key::TYPE_PRIMARY:
-				throw new RuntimeException('Primary key creation is not supported');
-			break;
 			case Key::TYPE_UNIQUE:
 				$type = 'UNIQUE INDEX';
 			break;
 			case Key::TYPE_FOREIGN:
 				$type = 'FOREIGN KEY';
 			break;
+			case Key::TYPE_PRIMARY:
+				throw new RuntimeException('Primary key creation is not supported');
 			default:
 				# Unknown type, just pass it as-is and hope for the best
 				$type = $key->getType();

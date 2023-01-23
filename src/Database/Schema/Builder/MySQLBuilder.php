@@ -277,7 +277,7 @@ class MySQLBuilder extends AbstractBuilder {
 	 * Get the attributes of the given column
 	 * @param  string $table  Table name
 	 * @param  string $column Column name
-	 * @return object
+	 * @return mixed
 	 */
 	protected function getColumnAttributes(string $table, string $column) {
 		$ret = null;
@@ -405,7 +405,7 @@ class MySQLBuilder extends AbstractBuilder {
 		}
 		if ( $column->getDefault() !== null ) {
 			$default = $column->getDefault();
-			if ( is_object($default) ) {
+			if ( is_object($default) && isset($default->value) ) {
 				$ret .= sprintf(" DEFAULT %s", $default->value);
 			} else {
 				$ret .= sprintf(" DEFAULT '%s'", $default);

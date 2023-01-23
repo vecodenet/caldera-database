@@ -238,9 +238,10 @@ class Column {
 
 	/**
 	 * Set column operation flag to rename
+	 * @param  string $name New column name
 	 * @return $this
 	 */
-	public function rename($name) {
+	public function rename(string $name) {
 		$this->name = [$this->name, $name];
 		$this->operation = Column::OPERATION_RENAME;
 		return $this;
