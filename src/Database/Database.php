@@ -73,6 +73,22 @@ class Database {
 	}
 
 	/**
+	 * Execute a SELECT query and get one row
+	 * @param  string $query      Query string
+	 * @param  array  $parameters Array of parameters
+	 * @return mixed
+	 */
+	public function first(string $query, array $parameters = []) {
+		$ret = [];
+		if ($this->adapter != null) {
+			$ret = $this->adapter->query($query, $parameters, function($stmt) {
+				return $stmt->fetch();
+			});
+		}
+		return $ret;
+	}
+
+	/**
 	 * Execute a SELECT query and return a scalar value
 	 * @param  string $query      Query string
 	 * @param  array  $parameters Array of parameters

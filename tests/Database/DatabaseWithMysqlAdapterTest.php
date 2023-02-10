@@ -130,6 +130,13 @@ class DatabaseWithMysqlAdapterTest extends TestCase {
 		$this->assertEquals('TEST', $rows[0]->name);
 	}
 
+	public function testSelectSingle() {
+		# Select a record
+		$row = self::$database->first("SELECT id, name, created, updated FROM test WHERE id = ?", [2]);
+		$this->assertIsObject($row);
+		$this->assertEquals('TEST', $row->name);
+	}
+
 	public function testSelectScalar() {
 		# Select a scalar
 		$count = self::$database->scalar("SELECT count(*) FROM test");
