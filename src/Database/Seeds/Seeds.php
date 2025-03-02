@@ -76,8 +76,8 @@ class Seeds {
 		} else {
 			$available = $seeders;
 		}
-		if ($seeders) {
-			foreach ($seeders as $seeder) {
+		if ($available) {
+			foreach ($available as $seeder) {
 				if (! class_exists($seeder->class) ) {
 					include $seeder->path;
 				}
