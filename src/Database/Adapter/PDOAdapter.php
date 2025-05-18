@@ -86,7 +86,7 @@ abstract class PDOAdapter implements AdapterInterface {
 					$index = 1;
 					$is_numeric = isset( $parameters[0] );
 					foreach ($parameters as $name => $value) {
-						$stmt->bindValue($is_numeric ? $index : $name, $value, is_numeric($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+						$stmt->bindValue($is_numeric ? $index : $name, $value, is_integer($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
 						$index++;
 					}
 				}
